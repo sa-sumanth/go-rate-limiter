@@ -14,6 +14,16 @@ func NewRedisStore(client *redis.Client) *RedisStore {
 	return &RedisStore{client: client}
 }
 
+func toFloat64(v interface{}) float64 {
+	switch val := v.(type) {
+	case int64:
+		return float64(val)
+	case float64:
+		return val
+	}
+	return 0
+}
+
 type TokenBucketResult struct {
 	Allowed   bool
 	Remaining float64
@@ -62,7 +72,7 @@ func (s *RedisStore) CheckTokenBucket(
 
 	return &TokenBucketResult{
 		Allowed:   result[0].(int64) == 1,
-		Remaining: result[1].(float64),
+		Remaining: toFloat64(result[1]),
 	}, nil
 }
 
@@ -116,7 +126,7 @@ func (s *RedisStore) CheckLeakyBucket(
 
 	return &LeakyBucketResult{
 		Allowed: result[0].(int64) == 1,
-		Depth:   result[1].(float64),
+		Depth:   toFloat64(result[1]),
 	}, nil
 }
 
@@ -258,6 +268,6 @@ func (s *RedisStore) CheckSlidingWindowCounter(
 
 	return &SlidingWindowCounterResult{
 		Allowed:  result[0].(int64) == 1,
-		Estimate: result[1].(float64),
+		Estimate: toFloat64(result[1]),
 	}, nil
 }
