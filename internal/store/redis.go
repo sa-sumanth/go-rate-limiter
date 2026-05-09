@@ -114,3 +114,47 @@ func (s *RedisStore) CheckLeakyBucket(
 		Depth:   result[1].(float64),
 	}, nil
 }
+
+type FixedWindowResult struct {
+	Allowed bool
+	Count   int64
+}
+
+var fixedWindowScript = redis.NewScript(`
+local key    = KEYS[1]
+local limit  = tonumber(ARGV[1])
+local window = tonumber(ARGV[2])
+
+local count = redis.call('INCR', key)
+
+if count == 1 then
+    redis.call('EXPIRE', key, window)
+end
+
+if count > limit then
+    return {0, count}
+end
+
+return {1, count}
+`)
+
+func (s *RedisStore) CheckFixedWindow(
+	ctx context.Context,
+	key string,
+	limit int64,
+	windowSecs int64,
+) (*FixedWindowResult, error) {
+	result, err := fixedWindowScript.Run(
+		ctx, s.client,
+		[]string{key},
+		limit, windowSecs,
+	).Slice()
+	if err != nil {
+		return nil, err
+	}
+
+	return &FixedWindowResult{
+		Allowed: result[0].(int64) == 1,
+		Count:   result[1].(int64),
+	}, nil
+}
