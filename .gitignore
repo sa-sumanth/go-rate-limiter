@@ -1,0 +1,17 @@
+# Binary output
+bin/
+*.exe
+
+# Go build cache
+*.test
+*.out
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Vendor
+vendor/
