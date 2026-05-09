@@ -49,6 +49,12 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/leaky_bucket", middleware.LeakyBucket(redisStore), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "request allowed"})
 	})
+	s.router.GET("/fixed_window", middleware.FixedWindow(redisStore), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "request allowed"})
+	})
+	s.router.GET("/sliding_window_log", middleware.SlidingWindowLog(redisStore), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "request allowed"})
+	})
 }
 
 func main() {

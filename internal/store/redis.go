@@ -158,3 +158,51 @@ func (s *RedisStore) CheckFixedWindow(
 		Count:   result[1].(int64),
 	}, nil
 }
+
+type SlidingWindowResult struct {
+	Allowed bool
+	Count   int64
+}
+
+var slidingWindowLogScript = redis.NewScript(`
+local key    = KEYS[1]
+local limit  = tonumber(ARGV[1])
+local now    = tonumber(ARGV[2])
+local window = tonumber(ARGV[3])
+
+local cutoff = now - window
+
+redis.call('ZREMRANGEBYSCORE', key, '-inf', cutoff)
+
+local count = redis.call('ZCARD', key)
+
+if count >= limit then
+    return {0, count}
+end
+
+redis.call('ZADD', key, now, now)
+redis.call('EXPIRE', key, window)
+return {1, count + 1}
+`)
+
+func (s *RedisStore) CheckSlidingWindowLog(
+	ctx context.Context,
+	key string,
+	limit int64,
+	windowSecs float64,
+	now float64,
+) (*SlidingWindowResult, error) {
+	result, err := slidingWindowLogScript.Run(
+		ctx, s.client,
+		[]string{key},
+		limit, now, windowSecs,
+	).Slice()
+	if err != nil {
+		return nil, err
+	}
+
+	return &SlidingWindowResult{
+		Allowed: result[0].(int64) == 1,
+		Count:   result[1].(int64),
+	}, nil
+}
