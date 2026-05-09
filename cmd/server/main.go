@@ -4,13 +4,14 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-contrib/pprof"
-	"github.com/sa-sumanth/go-rate-limiter/internal/middleware"
-	"github.com/sa-sumanth/go-rate-limiter/internal/store"
-
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/sa-sumanth/go-rate-limiter/internal/middleware"
+	"github.com/sa-sumanth/go-rate-limiter/internal/store"
 )
 
 type Server struct {
@@ -60,10 +61,20 @@ func (s *Server) setupRoutes() {
 	})
 }
 
+func getEnv(key, fallback string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return fallback
+}
+
 func main() {
 	ctx := context.Background()
 
-	rdb := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
+	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
+	port := getEnv("PORT", "8080")
+
+	rdb := redis.NewClient(&redis.Options{Addr: redisAddr})
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		log.Fatalf("could not connect to redis: %v", err)
 	}
@@ -71,7 +82,7 @@ func main() {
 	s := NewServer(rdb)
 	s.setupRoutes()
 
-	if err := s.Run(":8080"); err != nil {
-		log.Fatalf("Unable to start server: %v", err)
+	if err := s.Run(":" + port); err != nil {
+		log.Fatalf("unable to start server: %v", err)
 	}
 }
