@@ -14,8 +14,6 @@ func NewRedisStore(client *redis.Client) *RedisStore {
 	return &RedisStore{client: client}
 }
 
-// ── Token Bucket ─────────────────────────────────────────────────────────────
-
 type TokenBucketResult struct {
 	Allowed   bool
 	Remaining float64
@@ -63,5 +61,56 @@ func (s *RedisStore) CheckTokenBucket(
 	return &TokenBucketResult{
 		Allowed:   result[0].(int64) == 1,
 		Remaining: result[1].(float64),
+	}, nil
+}
+
+type LeakyBucketResult struct {
+	Allowed bool
+	Depth   float64
+}
+
+var leakyBucketScript = redis.NewScript(`
+local key      = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local rate     = tonumber(ARGV[2])
+local now      = tonumber(ARGV[3])
+
+local bucket    = redis.call('HMGET', key, 'depth', 'last_time')
+local depth     = tonumber(bucket[1]) or 0
+local last_time = tonumber(bucket[2]) or now
+
+local elapsed = now - last_time
+local leaked  = elapsed * rate
+local new_depth = math.max(0, depth - leaked)
+
+if new_depth >= capacity then
+    return {0, new_depth}
+end
+
+new_depth = new_depth + 1
+redis.call('HMSET', key, 'depth', new_depth, 'last_time', now)
+redis.call('EXPIRE', key, 3600)
+return {1, new_depth}
+`)
+
+func (s *RedisStore) CheckLeakyBucket(
+	ctx context.Context,
+	key string,
+	capacity float64,
+	rate float64,
+	now float64,
+) (*LeakyBucketResult, error) {
+	result, err := leakyBucketScript.Run(
+		ctx, s.client,
+		[]string{key},
+		capacity, rate, now,
+	).Slice()
+	if err != nil {
+		return nil, err
+	}
+
+	return &LeakyBucketResult{
+		Allowed: result[0].(int64) == 1,
+		Depth:   result[1].(float64),
 	}, nil
 }

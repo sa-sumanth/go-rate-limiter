@@ -42,7 +42,11 @@ func (s *Server) setupRoutes() {
 	})
 
 	redisStore := store.NewRedisStore(s.rdb)
+
 	s.router.GET("/token_bucket", middleware.TokenBucket(redisStore), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "request allowed"})
+	})
+	s.router.GET("/leaky_bucket", middleware.LeakyBucket(redisStore), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "request allowed"})
 	})
 }
