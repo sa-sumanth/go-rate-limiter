@@ -11,6 +11,7 @@ import (
 const (
 	lbCapacity = 10.0 // max queue depth
 	lbRate     = 2.0  // requests leaked per second
+	lbTTL      = 3600
 )
 
 func LeakyBucket(s *store.RedisStore) gin.HandlerFunc {
@@ -24,6 +25,7 @@ func LeakyBucket(s *store.RedisStore) gin.HandlerFunc {
 			lbCapacity,
 			lbRate,
 			now,
+			lbTTL,
 		)
 		if err != nil {
 			c.AbortWithStatusJSON(

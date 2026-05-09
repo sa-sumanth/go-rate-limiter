@@ -12,6 +12,7 @@ import (
 const (
 	tbCapacity   = 10.0 // max tokens
 	tbRefillRate = 2.0  // tokens per second
+	tbTTL        = 3600
 )
 
 func TokenBucket(s *store.RedisStore) gin.HandlerFunc {
@@ -25,6 +26,7 @@ func TokenBucket(s *store.RedisStore) gin.HandlerFunc {
 			tbCapacity,
 			tbRefillRate,
 			now,
+			tbTTL,
 		)
 		if err != nil {
 			c.AbortWithStatusJSON(

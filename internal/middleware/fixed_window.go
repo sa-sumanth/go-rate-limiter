@@ -16,11 +16,12 @@ const (
 
 func FixedWindow(s *store.RedisStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		windowID := time.Now().Unix() / fwWindow
+		now := time.Now().Unix()
+		windowStart := now - (now % fwWindow)
 		key := fmt.Sprintf(
 			"fixed_window:%s:%d",
 			c.ClientIP(),
-			windowID,
+			windowStart,
 		)
 
 		result, err := s.CheckFixedWindow(
